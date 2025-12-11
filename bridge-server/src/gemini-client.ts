@@ -34,12 +34,43 @@ function sanitizeGeminiSchema(schema: any): any {
     return schema;
   }
 
+  // List of JSON Schema properties not supported by Gemini API
+  const unsupportedKeys = [
+    '$schema',
+    '$ref',
+    'additionalProperties',
+    'patternProperties',
+    'exclusiveMinimum',
+    'exclusiveMaximum',
+    'oneOf',
+    'anyOf',
+    'allOf',
+    'not',
+    'if',
+    'then',
+    'else',
+    'dependentSchemas',
+    'dependentRequired',
+    'unevaluatedProperties',
+    'unevaluatedItems',
+    'contentEncoding',
+    'contentMediaType',
+  ];
+
   // Create a new object, filtering out unsupported keys at the current level.
   const newSchema: { [key: string]: any } = {};
   for (const key in schema) {
-    if (key !== '$schema' && key !== 'additionalProperties') {
+    if (!unsupportedKeys.includes(key)) {
       newSchema[key] = schema[key];
     }
+  }
+
+  // Convert exclusiveMinimum/exclusiveMaximum to minimum/maximum
+  if (schema.exclusiveMinimum !== undefined && newSchema.minimum === undefined) {
+    newSchema.minimum = schema.exclusiveMinimum;
+  }
+  if (schema.exclusiveMaximum !== undefined && newSchema.maximum === undefined) {
+    newSchema.maximum = schema.exclusiveMaximum;
   }
 
   // Recurse into nested 'properties' and 'items'.
