@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { type StreamChunk } from '../types.js';
+import { normalizeToolArgs } from '../utils/tool-normalizer.js';
 
 // --- OpenAI Response Interfaces ---
 interface OpenAIDelta {
@@ -89,6 +90,8 @@ export function createOpenAIStreamTransformer(
 
         case 'tool_code': {
           const { name, args } = chunk.data;
+          // Normalize tool arguments for Droid compatibility (e.g., TodoWrite field names)
+          const normalizedArgs = normalizeToolArgs(name, args);
           // IMPORTANT: Embed the function name in the ID so it can be parsed when a tool response is received.
           const toolCallId = `call_${name}_${randomUUID()}`;
 
@@ -114,7 +117,7 @@ export function createOpenAIStreamTransformer(
                 index: toolCallIndex,
                 id: toolCallId,
                 type: 'function',
-                function: { arguments: JSON.stringify(args) },
+                function: { arguments: JSON.stringify(normalizedArgs) },
               },
             ],
           };

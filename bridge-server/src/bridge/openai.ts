@@ -10,6 +10,7 @@ import {
   type OpenAIToolCall,
 } from '../types.js';
 import { mapErrorToOpenAIError } from '../utils/error-mapper.js';
+import { normalizeToolArgs } from '../utils/tool-normalizer.js';
 import { logger } from '../utils/logger.js';
 import { randomUUID } from 'node:crypto';
 
@@ -106,12 +107,14 @@ export function createOpenAIRouter(config: Config, debugMode = false): Router {
             fullTextContent += chunk.data;
           } else if (chunk.type === 'tool_code' && chunk.data) {
             const toolCallId = `call_${chunk.data.name}_${randomUUID()}`;
+            // Normalize tool arguments for Droid compatibility (e.g., TodoWrite field names)
+            const normalizedArgs = normalizeToolArgs(chunk.data.name, chunk.data.args);
             toolCalls.push({
               id: toolCallId,
               type: 'function',
               function: {
                 name: chunk.data.name,
-                arguments: JSON.stringify(chunk.data.args),
+                arguments: JSON.stringify(normalizedArgs),
               },
             });
           }
