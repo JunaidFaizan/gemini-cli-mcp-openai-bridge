@@ -145,6 +145,59 @@ export class GeminiApiClient {
   }
 
   /**
+   * Converts OpenAI messages to Gemini format, merging consecutive tool responses.
+   * Gemini requires all tool responses for a turn to be in a single Content object.
+   */
+  private convertMessagesToGemini(messages: OpenAIMessage[]): Content[] {
+    const result: Content[] = [];
+    let i = 0;
+
+    while (i < messages.length) {
+      const msg = messages[i];
+
+      // If this is a tool response, collect all consecutive tool responses
+      if (msg.role === 'tool') {
+        const toolResponseParts: Part[] = [];
+
+        // Collect all consecutive tool messages into one Content
+        while (i < messages.length && messages[i].role === 'tool') {
+          const toolMsg = messages[i];
+          const functionName = this.parseFunctionNameFromId(toolMsg.tool_call_id || '');
+          let responsePayload: Record<string, unknown>;
+
+          try {
+            const parsed = JSON.parse(toolMsg.content as string);
+            if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+              responsePayload = parsed as Record<string, unknown>;
+            } else {
+              responsePayload = { output: parsed };
+            }
+          } catch (e) {
+            responsePayload = { output: toolMsg.content };
+          }
+
+          toolResponseParts.push({
+            functionResponse: {
+              name: functionName,
+              response: responsePayload,
+            },
+          });
+          i++;
+        }
+
+        // Add single Content with all tool responses merged
+        result.push({ role: 'user', parts: toolResponseParts });
+      } else {
+        // Non-tool message, convert normally
+        result.push(this.openAIMessageToGemini(msg));
+        i++;
+      }
+    }
+
+    return result;
+  }
+
+  /**
    * Converts an OpenAI-formatted message to a Gemini-formatted Content object.
    */
   private openAIMessageToGemini(msg: OpenAIMessage): Content {
@@ -286,7 +339,8 @@ export class GeminiApiClient {
     // will be converted to a 'user' role message by openAIMessageToGemini,
     // effectively merging it into the conversation history.
 
-    const history = messages.map(msg => this.openAIMessageToGemini(msg));
+    // Use convertMessagesToGemini to properly merge consecutive tool responses
+    const history = this.convertMessagesToGemini(messages);
     const lastMessage = history.pop();
 
     logger.info('Calling Gemini API', { model });
