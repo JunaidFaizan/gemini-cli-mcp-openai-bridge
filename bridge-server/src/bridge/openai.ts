@@ -178,12 +178,12 @@ export function createOpenAIRouter(config: Config, debugMode = false): Router {
     }
   });
 
-  // The /v1/models endpoint can be added here.
+  // The /v1/models endpoint returns available Gemini models
   router.get('/models', (req, res) => {
-    // This can return a fixed list of models or get them from the config.
     res.json({
       object: 'list',
       data: [
+        { id: 'gemini-3-pro-preview', object: 'model', owned_by: 'google' },
         { id: 'gemini-2.5-pro', object: 'model', owned_by: 'google' },
         { id: 'gemini-2.5-flash', object: 'model', owned_by: 'google' },
       ],
