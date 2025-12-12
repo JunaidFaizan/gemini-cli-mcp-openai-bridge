@@ -28,6 +28,8 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import path from 'path';
 import readline from 'readline';
+import { existsSync } from 'fs';
+import { homedir } from 'os';
 
 function mergeMcpServers(
   settings: Settings,
@@ -199,8 +201,15 @@ async function startMcpServer() {
   let selectedAuthType = settings.merged.selectedAuthType;
   let authReason = '';
 
+  // Path to OAuth credentials file
+  const oauthCredsPath = path.join(homedir(), '.gemini', 'oauth_creds.json');
+
   if (selectedAuthType) {
     authReason = ' (from .gemini/settings.json)';
+  } else if (existsSync(oauthCredsPath)) {
+    // Auto-detect OAuth credentials from gemini-cli authentication
+    selectedAuthType = AuthType.LOGIN_WITH_GOOGLE;
+    authReason = ' (auto-detected from ~/.gemini/oauth_creds.json)';
   } else if (process.env.GEMINI_API_KEY) {
     selectedAuthType = AuthType.USE_GEMINI;
     authReason = ' (fallback to GEMINI_API_KEY environment variable)';
